@@ -16,7 +16,8 @@ public enum ErrorCodeEnum implements ErrorCode {
 	CMN_INTER_ERR(500, "系统繁忙，请稍后再试"), //
 	SYS_RUNTIME_ERROR(501, "系统运行出错，{0}"), //
 	CMN_ILLEGAL_ARG(400, "参数不合法，{0}"), //
-	CMN_ILLEGAL_OPERATION_ERR(401, "操作不合法，{0}"),//
+	CMN_ILLEGAL_OPERATION_ERR(401, "操作不合法，{0}"), //
+	CMN_BLANK_ERROR(100, "{0}"), //
 	;
 
 	ErrorCodeEnum(Integer errorCode, String errorPattern) {

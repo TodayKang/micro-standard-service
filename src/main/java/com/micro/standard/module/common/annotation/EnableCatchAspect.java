@@ -25,7 +25,7 @@ public class EnableCatchAspect {
 	@Around("aspect()")
 	public Object doAround(ProceedingJoinPoint point) throws Throwable {
 		Object returnValue = null;
-		EnableCatch.class.getName();
+
 		try {
 			returnValue = point.proceed(point.getArgs());
 		} catch (Throwable e) {

@@ -6,12 +6,12 @@ import java.nio.charset.Charset;
 import javax.annotation.Resource;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -23,7 +23,7 @@ import cn.hutool.core.net.URLDecoder;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Configuration
+@WebFilter(urlPatterns = { "/v1/*" })
 @Order(value = Ordered.HIGHEST_PRECEDENCE)
 public class OnceTraceFilter extends OncePerRequestFilter {
 
@@ -45,20 +45,17 @@ public class OnceTraceFilter extends OncePerRequestFilter {
 			requestURL.append("?").append(queryString);
 		}
 
-		// 打印请求 URL
+		// 打印 URL
 		log.info("[request url][{}] {}", request.getMethod(), requestURL.toString());
 
 		filterChain.doFilter(request, response);
 
-		// 打印执行时间
-		long end = System.currentTimeMillis();
-		log.info("[CostTime] {} ms", end - start);
+		log.info("[{}] [CostTime] {} ms", request.getServletPath(), System.currentTimeMillis() - start);
 	}
 
 	@Override
 	public void destroy() {
 		MDC.clear();
-		super.destroy();
 	}
 
 }

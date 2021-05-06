@@ -1,4 +1,3 @@
-server:
-  port: 8090
-
-host.gat-service: https://passport.guanaitong.com
+## host url
+host.btstu: https://api.btstu.cn
+host.ioser: https://api.ioser.net

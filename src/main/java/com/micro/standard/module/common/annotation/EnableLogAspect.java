@@ -1,5 +1,7 @@
 package com.micro.standard.module.common.annotation;
 
+import java.util.Objects;
+
 import javax.annotation.Resource;
 
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -32,7 +34,10 @@ public class EnableLogAspect {
 		String className = point.getSignature().getDeclaringType().getSimpleName();
 		String methodName = point.getSignature().getName();
 
-		if (point.getArgs() != null && point.getArgs().length > 0) {
+//		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+//		HttpServletRequest request = attributes.getRequest();
+
+		if (Objects.nonNull(point.getArgs()) && point.getArgs().length > 0) {
 			for (Object item : point.getArgs()) {
 				log.info("[{}.{}][Args] {}", className, methodName, objectMapper.writeValueAsString(item));
 			}
@@ -42,7 +47,14 @@ public class EnableLogAspect {
 
 		// 异常交给下游处理（例如： HandlerException 处理）
 		// 此处不统一封装response，也不打印返回值，交给HandlerResponseBody处理
-		Object returnValue = point.proceed(point.getArgs());
+		Object returnValue = null;
+		try {
+			returnValue = point.proceed(point.getArgs());
+		} catch (Exception e) {
+			throw e;
+		} finally {
+
+		}
 
 		return returnValue;
 	}

@@ -15,10 +15,10 @@ import com.micro.standard.module.common.base.BaseResponse;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 全局封装response（不需要做任何配置）
+ * 全局封装response
  */
 @Slf4j
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = { "com.micro.standard.module.core.web.controller" })
 public class HandlerResponseBody implements ResponseBodyAdvice<Object> {
 
 	@Override
@@ -30,8 +30,10 @@ public class HandlerResponseBody implements ResponseBodyAdvice<Object> {
 	public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType selectedContentType,
 			Class<? extends HttpMessageConverter<?>> selectedConverterType, ServerHttpRequest request,
 			ServerHttpResponse response) {
-		Object returnValue = null;
+		String className = returnType.getExecutable().getDeclaringClass().getSimpleName();
+		String methodName = returnType.getExecutable().getName();
 
+		Object returnValue = null;
 		if (body instanceof String) {
 			BaseResponse<String> object = BaseResponse.success(body.toString());
 			returnValue = JSON.toJSONString(object);
@@ -41,8 +43,6 @@ public class HandlerResponseBody implements ResponseBodyAdvice<Object> {
 			returnValue = BaseResponse.success(body);
 		}
 
-		String className = returnType.getExecutable().getDeclaringClass().getSimpleName();
-		String methodName = returnType.getExecutable().getName();
 		log.info("[{}.{}][ReturnValue] {}", className, methodName, JSONObject.toJSON(returnValue));
 
 		return returnValue;

@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import com.micro.standard.module.common.component.MdcTaskDecorator;
+import com.micro.standard.module.core.config.task.MdcTaskDecorator;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,16 +14,18 @@ import lombok.extern.slf4j.Slf4j;
 @Configuration
 public class ThreadPoolConfig {
 
+	// 获取到服务器的cpu内核
+	private static final int core = Runtime.getRuntime().availableProcessors();
+	static {
+		log.info("当前系统availableProcessors数量为:{}", core);
+	}
+
 	@Bean("threadPoolTaskExecutor") // 业务线程池
 	public ThreadPoolTaskExecutor threadPoolTaskExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		// 获取到服务器的cpu内核
-		int core = Runtime.getRuntime().availableProcessors();
-		log.info("初始化threadPoolJobExecutor,核心线程数量:{}", core);
-
 		executor.setCorePoolSize(core);
-		executor.setMaxPoolSize(core * 3);
-		executor.setQueueCapacity(200);
+		executor.setMaxPoolSize(core * 2);
+		executor.setQueueCapacity(2000);
 		executor.setThreadNamePrefix("thread-pool-task-");
 		executor.setTaskDecorator(new MdcTaskDecorator());
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
@@ -35,13 +37,9 @@ public class ThreadPoolConfig {
 	@Bean("threadPoolJobExecutor") // 调度任务线程池
 	public ThreadPoolTaskExecutor threadPoolJobExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		// 获取到服务器的cpu内核
-		int core = Runtime.getRuntime().availableProcessors();
-		log.info("初始化threadPoolJobExecutor,核心线程数量:{}", core);
-
 		executor.setCorePoolSize(core);
 		executor.setMaxPoolSize(core * 3);
-		executor.setQueueCapacity(200);
+		executor.setQueueCapacity(100);
 		executor.setThreadNamePrefix("thread-pool-job-");
 		executor.setTaskDecorator(new MdcTaskDecorator());
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
@@ -50,17 +48,14 @@ public class ThreadPoolConfig {
 		return executor;
 	}
 
-	@Bean("threadPoolBatchExecutor") // 跑批
-	public ThreadPoolTaskExecutor threadPoolBatchExecutor() {
+	@Bean("threadPoolFutureExecutor") // 异步调用
+	public ThreadPoolTaskExecutor threadPoolFutureExecutor() {
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-		// 获取到服务器的cpu内核
-		int core = Runtime.getRuntime().availableProcessors();
-		log.info("初始化threadPoolJobExecutor,核心线程数量:{}", core);
-
 		executor.setCorePoolSize(core);
 		executor.setMaxPoolSize(core * 10);
-		executor.setQueueCapacity(500000);
-		executor.setThreadNamePrefix("thread-pool-batch-");
+		executor.setQueueCapacity(500);
+		executor.setThreadNamePrefix("thread-pool-future-");
+		executor.setTaskDecorator(new MdcTaskDecorator());
 		executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 		executor.initialize();
 

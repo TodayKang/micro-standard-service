@@ -1,9 +1,11 @@
 package com.micro.standard.module.core.web.controller;
 
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Resource;
 
+import com.micro.standard.module.core.web.feign.BtstuFeign;
+import com.micro.standard.module.core.web.feign.IoserFeign;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
@@ -16,11 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.micro.standard.module.common.annotation.EnableLog;
-import com.micro.standard.module.core.web.feign.GATFeign;
+import com.micro.standard.module.common.exception.BusinessException;
+import com.micro.standard.module.common.exception.ErrorCodeEnum;
 
 import cn.hutool.core.lang.Snowflake;
+import cn.hutool.core.util.IdUtil;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -29,100 +32,97 @@ import lombok.extern.slf4j.Slf4j;
 public class WebController {
 
 	@Resource
-	private ThreadPoolTaskExecutor threadPoolBatchExecutor;
+	private ThreadPoolTaskExecutor threadPoolTaskExecutor;
 
 	@Resource
-	private GATFeign gatFeign;
+	private ThreadPoolTaskExecutor threadPoolFutureExecutor;
+
+	@Resource
+	private BtstuFeign btstuFeign;
+
+	@Resource
+	private IoserFeign ioserFeign;
 
 	@Resource
 	private Snowflake snowflake;
 
-	@EnableLog
-	@RequestMapping(value = "/doLogin", method = RequestMethod.POST)
-	public JSONObject doLoginByPC(@RequestBody JSONObject req) {
-		Preconditions.checkArgument(MapUtils.isNotEmpty(req), "请求参数为空！");
+	@RequestMapping(method = RequestMethod.POST, value = "/testPost")
+	public JSONObject testPost(@RequestBody(required = false) JSONObject req) {
+		JSONObject object = new JSONObject();
+		object.put("loginName", IdUtil.fastSimpleUUID());
+		object.put("passwd", IdUtil.fastSimpleUUID());
+		object.put("source", "P");
 
-		String loginName = req.getString("loginName");
-		String password = req.getString("password");
-		String sig = req.getString("sig");
-		String csessionid = req.getString("csessionid");
-
-		Map<String, String> map = Maps.newHashMap();
-		map.put("loginName", loginName);
-		map.put("password", password);
-		map.put("sig", sig);
-		map.put("csessionid", csessionid);
-
-		JSONObject resp = gatFeign.doLogin(map);
-		log.info("关爱通登录信息:{}", resp);
-
-		return resp;
+		return object;
 	}
 
 	@EnableLog
-	@RequestMapping(value = "/testPost", method = RequestMethod.POST)
-	public JSONObject testPost(@RequestBody JSONObject req) {
-		Preconditions.checkArgument(MapUtils.isNotEmpty(req), "请求参数为空！");
-
-		Map<String, String> map = Maps.newHashMap();
-		map.put("loginName", "1234");
-		map.put("verificationCode", "");
-		map.put("sig", "");
-		map.put("csessionid", " ");
-		JSONObject resp = gatFeign.forgetPwd(map);
-
-		return resp;
-	}
-
-	@EnableLog
-	@RequestMapping(value = "/testGet", method = RequestMethod.GET)
-	public JSONObject testGet(@RequestParam("loginName") String loginName, @RequestParam("password") String password) {
+	@RequestMapping(method = RequestMethod.GET, value = "/testGet")
+	public JSONObject testGet(@RequestParam(required = false, value = "loginName") String loginName,
+			@RequestParam(required = false, value = "password") String password,
+			@RequestParam(required = false, value = "source", defaultValue = "P") String source) {
 		Preconditions.checkArgument(StringUtils.isNotBlank(loginName), "登录名为空！");
 		Preconditions.checkArgument(StringUtils.isNotBlank(password), "登录密码为空！");
 
-		JSONObject resp = new JSONObject();
-		resp.put("loginName", loginName);
-		resp.put("password", password);
+		JSONObject object = new JSONObject();
+		object.put("loginName", loginName);
+		object.put("password", password);
+		object.put("source", source);
 
-		return resp;
+		return object;
 	}
 
 	@EnableLog
-	@RequestMapping(value = "/testAttack", method = RequestMethod.GET)
-	public void testAttack() throws Exception {
-		for (int i = 1; i <= 100000; i++) {
-			if (i == 100000) {
-				log.info("执行完毕！");
-			}
+	@RequestMapping(method = RequestMethod.GET, value = "/qq/getInfo")
+	public JSONObject getQQInfo(@RequestParam(value = "qq") String qq) throws Exception {
+		Preconditions.checkArgument(StringUtils.isNotBlank(qq), "QQ号码不存在！");
 
-			threadPoolBatchExecutor.execute(() -> {
-				doLogin();
-			});
+		// 获取QQ昵称和头像
+		CompletableFuture<JSONObject> task1 = CompletableFuture.supplyAsync(() -> {
+			long begin = System.currentTimeMillis();
+			String str = btstuFeign.getNickNameAndIconByQQ(qq);
+			JSONObject object = JSONObject.parseObject(str);
 
-			if (i % 100 == 0) {
-				Thread.sleep(0);
-			}
+			long end = System.currentTimeMillis();
+			log.info("getNickNameAndIconByQQ[qq={},cost={} ms]", qq, end - begin, object);
+
+			return object;
+		}, threadPoolFutureExecutor);
+
+		// QQ信息查询
+		CompletableFuture<JSONObject> task2 = CompletableFuture.supplyAsync(() -> {
+			long begin = System.currentTimeMillis();
+			String str = btstuFeign.getInfoByQQ(qq);
+			JSONObject object = JSONObject.parseObject(str);
+
+			long end = System.currentTimeMillis();
+			log.info("getInfoByQQ[qq={},cost={} ms]", qq, end - begin, object);
+			return object;
+		}, threadPoolFutureExecutor);
+
+		JSONObject object1 = task1.get();
+		JSONObject object2 = task2.get();
+
+		if (MapUtils.isEmpty(object1) || StringUtils.isNotBlank(object1.getString("msg")) || MapUtils.isEmpty(object2)
+				|| StringUtils.isNotBlank(object2.getString("msg"))) {
+			throw new BusinessException(ErrorCodeEnum.CMN_INTER_ERR);
 		}
 
-	}
+		JSONObject data = new JSONObject();
+		if (MapUtils.isNotEmpty(object1)) {
+			data.put("iconUrl", object1.getString("imgurl"));
+		}
 
-	JSONObject doLogin() {
-		String attackStr = snowflake.nextIdStr();
+		if (MapUtils.isNotEmpty(object2)) {
+			data.put("qq", object2.getString("qq"));
+			data.put("sex", object2.getString("sex"));
+			data.put("nickName", object2.getString("nick"));
+			data.put("sign", object2.getString("sign"));
+			data.put("age", object2.getString("qAge"));
+			data.put("grade", object2.getString("grade"));
+		}
 
-		Map<String, String> map = Maps.newHashMap();
-//		map.put("loginName", attackStr);
-//		map.put("password", attackStr);
-//		map.put("sig", "");
-//		map.put("csessionid", attackStr);
-//		JSONObject resp = gatFeign.doLogin(map);
-
-		map.put("loginName", attackStr);
-		map.put("verificationCode", "");
-		map.put("sig", "");
-		map.put("csessionid", attackStr);
-		JSONObject resp = gatFeign.forgetPwd(map);
-
-		return resp;
+		return data;
 	}
 
 }

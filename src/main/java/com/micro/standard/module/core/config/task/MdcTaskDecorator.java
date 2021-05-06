@@ -1,4 +1,4 @@
-package com.micro.standard.module.common.component;
+package com.micro.standard.module.core.config.task;
 
 import java.util.Map;
 
